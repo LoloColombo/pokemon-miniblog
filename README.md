@@ -1,62 +1,75 @@
-# FastAPI Mini Blog
+# Pokémon Mini Blog — FastAPI
 
-API REST para gestionar publicaciones de un blog. Es un proyecto de aprendizaje y portfolio que evoluciona junto con los módulos de desarrollo backend.
+API REST de un blog sobre el mundo Pokémon. Proyecto de la materia Desarrollo de Sistemas Web (3° año), basado en el Mini Blog visto en clase ([cgldev/fastapi-miniblog](https://github.com/cgldev/fastapi-miniblog)).
 
-## Funcionalidades implementadas actualmente
+## Temática
 
-- Crear, listar, consultar, actualizar y eliminar publicaciones.
-- Buscar publicaciones por título.
-- Paginar resultados y ordenar por identificador o título.
-- Filtrar publicaciones por una o más etiquetas.
-- Asociar opcionalmente un autor y etiquetas a una publicación.
-- Validar datos de entrada mediante Pydantic.
-- Manejar respuestas HTTP para recursos no encontrados y errores de persistencia.
-- Documentación interactiva generada por FastAPI.
+- **Posts**: entradas sobre Pokémon (fichas, guías, estrategias).
+- **Categorías**: los tipos Pokémon (Fuego, Agua, Planta, Eléctrico, Psíquico…). Un post pertenece a una sola categoría.
+- **Tags**: etiquetas libres como región o característica (`kanto`, `johto`, `legendario`, `competitivo`…). Un post puede tener varias.
+- **Usuarios**: entrenadores con roles `user`, `editor` y `admin`.
+
+## Funcionalidades
+
+- CRUD de posts con búsqueda, paginación, orden, filtro por tags e imagen opcional.
+- Slug automático y único para cada post, y consulta por slug.
+- Usuarios reales en base de datos, contraseñas cifradas con pwdlib (Argon2) y login con JWT.
+- Roles: `user` lee contenido, `editor` crea y edita posts, tags y categorías, `admin` gestiona usuarios y borra categorías.
+- CRUD de tags con paginación y endpoint de la etiqueta más usada.
+- CRUD de categorías con slug.
+- Seeds para cargar datos iniciales con un comando.
 
 ## Tecnologías
 
-- Python
-- FastAPI
-- Pydantic v2
-- SQLAlchemy 2
-- SQLite para desarrollo local
-- python-dotenv para configuración mediante variables de entorno
+Python, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite (local) / PostgreSQL, PyJWT, pwdlib, python-slugify, Typer.
 
-## Estructura principal
+## Estructura
 
 ```text
 app/
 ├── main.py
-├── core/
-│   └── db.py
-├── models/
-│   ├── author.py
-│   ├── post.py
-│   └── tag.py
-└── api/
-    └── v1/
-        └── posts/
-            ├── router.py
-            ├── repository.py
-            └── schemas.py
+├── core/          db.py, security.py
+├── models/        user.py, category.py, tag.py, post.py
+├── services/      pagination.py, file_storage.py
+├── utils/         slugify_utils.py
+├── seeds/         data.py, service.py, run.py
+└── api/v1/
+    ├── auth/
+    ├── users/
+    ├── posts/
+    ├── tags/
+    ├── categories/
+    └── uploads/
 ```
 
-## Requisitos
-
-Python 3.10 o superior. Las dependencias están declaradas en `requirements.txt`.
-
 ## Instalación en Windows (PowerShell)
-
-Desde la raíz del repositorio:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+copy .env.example .env
 ```
 
-Si necesitás usar variables de entorno, copiá `.env.example` como `.env` y ajustá los valores para tu entorno. No subas el archivo `.env` a GitHub.
+Si ya tenías un `blog.db` de una versión anterior, borralo antes de seguir: el esquema cambió.
+
+## Cargar datos iniciales
+
+```powershell
+python -m app.seeds all
+```
+
+También se pueden cargar por partes: `users`, `categories`, `tags`, `posts`.
+
+Usuarios de prueba (contraseña `pokemon123`, configurable con `SEED_PASSWORD`):
+
+| Usuario | Email | Rol |
+|---|---|---|
+| profesor-oak | oak@pokeblog.com | admin |
+| misty | misty@pokeblog.com | editor |
+| brock | brock@pokeblog.com | editor |
+| ash | ash@pokeblog.com | user |
 
 ## Ejecutar la API
 
@@ -64,29 +77,54 @@ Si necesitás usar variables de entorno, copiá `.env.example` como `.env` y aju
 fastapi dev app/main.py
 ```
 
-Abrí la documentación interactiva en `http://127.0.0.1:8000/docs`.
+Documentación interactiva: `http://127.0.0.1:8000/docs`. Para probar endpoints protegidos, usar el botón **Authorize** con el email o el usuario y la contraseña.
 
-## Endpoints actuales
+## Endpoints
 
-| Método | Ruta | Propósito |
+Todos bajo `/api/v1`.
+
+| Método | Ruta | Acceso |
 |---|---|---|
-| `GET` | `/posts` | Listar publicaciones, con búsqueda, paginación y orden |
-| `GET` | `/posts/by-tags` | Filtrar publicaciones por etiquetas |
-| `GET` | `/posts/{post_id}` | Consultar una publicación; permite omitir el contenido |
-| `POST` | `/posts` | Crear una publicación |
-| `PUT` | `/posts/{post_id}` | Actualizar una publicación |
-| `DELETE` | `/posts/{post_id}` | Eliminar una publicación |
+| `POST` | `/auth/register` | Público |
+| `POST` | `/auth/login` | Público |
+| `GET` | `/auth/me` | Autenticado |
+| `GET` | `/users` | Admin |
+| `GET` | `/users/{id}` | Admin |
+| `PATCH` | `/users/{id}/role` | Admin |
+| `PATCH` | `/users/{id}/active` | Admin |
+| `DELETE` | `/users/{id}` | Admin |
+| `GET` | `/posts` | Público |
+| `GET` | `/posts/by-tags` | Público |
+| `GET` | `/posts/post/{slug}` | Público |
+| `GET` | `/posts/{id}` | Público |
+| `POST` | `/posts` | Editor |
+| `PUT` | `/posts/{id}` | Editor |
+| `DELETE` | `/posts/{id}` | Editor |
+| `GET` | `/tags` | Público |
+| `GET` | `/tags/popular` | Público |
+| `GET` | `/tags/{id}` | Público |
+| `POST` | `/tags` | Editor |
+| `PUT` | `/tags/{id}` | Editor |
+| `DELETE` | `/tags/{id}` | Editor |
+| `GET` | `/categories` | Público |
+| `GET` | `/categories/slug/{slug}` | Público |
+| `GET` | `/categories/{id}` | Público |
+| `POST` | `/categories` | Editor |
+| `PUT` | `/categories/{id}` | Editor |
+| `DELETE` | `/categories/{id}` | Admin |
+| `POST` | `/upload/save` | Público |
 
-## Estado del proyecto
+## Variables de entorno
 
-Esta es la versión inicial publicada del proyecto. La autenticación JWT, la gestión independiente de usuarios/categorías/etiquetas, los slugs, las migraciones con Alembic, PostgreSQL y el despliegue son trabajo futuro y no se presentan aquí como funcionalidades ya implementadas.
+| Variable | Uso |
+|---|---|
+| `DATABASE_URL` | Conexión a la base. Por defecto SQLite local |
+| `SECRET_KEY` | Secreto para firmar los JWT. Obligatorio cambiarlo en producción |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Duración del token |
+| `SEED_PASSWORD` | Contraseña de los usuarios del seed |
 
-Actualmente, la aplicación crea las tablas al iniciar, una solución de desarrollo que se revisará al incorporar migraciones.
-
-## Objetivo educativo
-
-El repositorio acompaña el aprendizaje de desarrollo de APIs REST y se ampliará con commits pequeños y coherentes a medida que se implementen nuevas funcionalidades. Cada commit documentará un cambio real en el código.
+No subir el archivo `.env` a GitHub.
 
 ## Autor
 
-César Gimenez Lascano — [@cgldev](https://github.com/cgldev)
+Lorenzo Colombo — [@LoloColombo](https://github.com/LoloColombo). Base del proyecto: César Gimenez Lascano — [@cgldev](https://github.com/cgldev).

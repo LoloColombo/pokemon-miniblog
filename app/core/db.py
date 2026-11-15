@@ -1,8 +1,13 @@
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 
+load_dotenv()
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine_kwargs = {}
 if DATABASE_URL.startswith("sqlite"):

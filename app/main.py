@@ -16,15 +16,15 @@ MEDIA_DIR = "app/media"
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Mini Blog")
+    app = FastAPI(title="Pokémon Mini Blog", description="Mini Blog con FastAPI sobre el mundo Pokémon")
     Base.metadata.create_all(bind=engine)  # dev
 
     app.include_router(auth_router, prefix="/api/v1")
-    app.include_router(post_router)
+    app.include_router(post_router, prefix="/api/v1")
     app.include_router(tag_router, prefix="/api/v1")
     app.include_router(user_router, prefix="/api/v1")
     app.include_router(category_router, prefix="/api/v1")
-    app.include_router(upload_router)  # Add the upload router
+    app.include_router(upload_router, prefix="/api/v1")  # Add the upload router
 
     os.makedirs(MEDIA_DIR, exist_ok=True)  # Ensure media directory exists
     app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
