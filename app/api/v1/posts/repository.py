@@ -52,6 +52,7 @@ class PostRepository:
             .options(
                 selectinload(PostORM.tags),
                 joinedload(PostORM.user),
+                joinedload(PostORM.category),
             ).where(PostORM.tags.any(func.lower(TagORM.name).in_(normalized_tag_names)))
             .order_by(PostORM.id.asc())
         )
@@ -73,9 +74,9 @@ class PostRepository:
 
         return tag_obj
 
-    def create_post(self, title: str, content: str, user: Optional[UserORM], tags: List[dict], image_url: Optional[str]) -> PostORM:
+    def create_post(self, title: str, content: str, user: Optional[UserORM], tags: List[dict], image_url: Optional[str], category_id: Optional[int] = None) -> PostORM:
         post = PostORM(title=title, content=content, image_url=image_url,
-                       user=user)
+                       user=user, category_id=category_id)
         for tag in tags:
             tag_obj = self.ensure_tag(tag["name"])
             post.tags.append(tag_obj)

@@ -7,6 +7,7 @@ from app.core.db import get_db
 from .schemas import (PostPublic, PaginatedPost,
                       PostCreate, PostUpdate, PostSummary)
 from .repository import PostRepository
+from app.api.v1.categories.repository import CategoryRepository
 from app.core.security import oauth2_scheme, require_editor
 from app.services.file_storage import save_uploaded_image
 
@@ -107,6 +108,9 @@ def get_post(post_id: int = Path(
 @router.post("", response_model=PostPublic, response_description="Post creado (OK)", status_code=status.HTTP_201_CREATED)
 def create_post(post: Annotated[PostCreate, Depends(PostCreate.as_form)], image: Optional[UploadFile] = File(None), db: Session = Depends(get_db), user=Depends(require_editor)):
     repository = PostRepository(db)
+    if post.category_id is not None and not CategoryRepository(db).get(post.category_id):
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
     saved = None
     try:
         if image is not None:
@@ -119,7 +123,8 @@ def create_post(post: Annotated[PostCreate, Depends(PostCreate.as_form)], image:
             content=post.content,
             user=user,
             tags=[tag.model_dump() for tag in post.tags],
-            image_url=image_url
+            image_url=image_url,
+            category_id=post.category_id
         )
         db.commit()
         db.refresh(post)
@@ -142,8 +147,11 @@ def update_post(post_id: int, data: PostUpdate, db: Session = Depends(get_db), u
     if not post:
         raise HTTPException(status_code=404, detail="Post no encontrado")
 
+    updates = data.model_dump(exclude_unset=True)
+    if updates.get("category_id") is not None and not CategoryRepository(db).get(updates["category_id"]):
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
     try:
-        updates = data.model_dump(exclude_unset=True)
         post = repository.update_post(post, updates)
         db.commit()
         db.refresh(post)
