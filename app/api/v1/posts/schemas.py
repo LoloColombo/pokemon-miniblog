@@ -1,5 +1,5 @@
 from typing import Optional, List, Union, Literal, Annotated
-from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from fastapi import Form
 
 
@@ -10,9 +10,9 @@ class Tag(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class Author(BaseModel):
-    name: str
-    email: EmailStr
+class PostUser(BaseModel):
+    id: int
+    username: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,7 +21,7 @@ class PostBase(BaseModel):
     title: str
     content: str
     tags: Optional[List[Tag]] = Field(default_factory=list)  # []
-    author: Optional[Author] = None
+    user: Optional[PostUser] = None
     image_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

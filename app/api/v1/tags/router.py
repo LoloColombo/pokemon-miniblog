@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.db import get_db
-from app.core.security import get_current_user
+from app.core.security import require_editor
 from .repository import TagRepository
 from .schemas import PaginatedTags, TagCreate, TagPublic, TagUpdate, TagWithCount
 
@@ -43,7 +43,7 @@ def get_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=TagPublic, status_code=status.HTTP_201_CREATED)
-def create_tag(tag: TagCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def create_tag(tag: TagCreate, db: Session = Depends(get_db), user=Depends(require_editor)):
     repository = TagRepository(db)
     tag_created = repository.create_tag(name=tag.name)
     db.commit()
@@ -52,7 +52,7 @@ def create_tag(tag: TagCreate, db: Session = Depends(get_db), user=Depends(get_c
 
 
 @router.put("/{tag_id}", response_model=TagPublic)
-def update_tag(data: TagUpdate, tag_id: int = Path(..., ge=1), db: Session = Depends(get_db), user=Depends(get_current_user)):
+def update_tag(data: TagUpdate, tag_id: int = Path(..., ge=1), db: Session = Depends(get_db), user=Depends(require_editor)):
     repository = TagRepository(db)
     tag = repository.get(tag_id)
     if not tag:
@@ -70,7 +70,7 @@ def update_tag(data: TagUpdate, tag_id: int = Path(..., ge=1), db: Session = Dep
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db), user=Depends(get_current_user)):
+def delete_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db), user=Depends(require_editor)):
     repository = TagRepository(db)
     if not repository.delete(tag_id):
         raise HTTPException(status_code=404, detail="Tag no encontrado")
