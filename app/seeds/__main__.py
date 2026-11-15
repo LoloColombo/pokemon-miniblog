@@ -1,0 +1,3 @@
+from app.seeds.run import app
+
+app()

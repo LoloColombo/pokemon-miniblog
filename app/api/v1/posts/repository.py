@@ -3,6 +3,7 @@ from typing import Optional, List, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload, joinedload
 from app.models import PostORM, TagORM, UserORM
+from app.utils.slugify_utils import ensure_unique_slug
 
 
 class PostRepository:
@@ -11,6 +12,10 @@ class PostRepository:
 
     def get(self, post_id: int) -> Optional[PostORM]:
         post_find = select(PostORM).where(PostORM.id == post_id)
+        return self.db.execute(post_find).scalar_one_or_none()
+
+    def get_by_slug(self, slug: str) -> Optional[PostORM]:
+        post_find = select(PostORM).where(PostORM.slug == slug)
         return self.db.execute(post_find).scalar_one_or_none()
 
     def search(self, query: Optional[str], order_by: str, direction: str, page: int, per_page: int) -> Tuple[int, List[PostORM]]:
@@ -75,7 +80,8 @@ class PostRepository:
         return tag_obj
 
     def create_post(self, title: str, content: str, user: Optional[UserORM], tags: List[dict], image_url: Optional[str], category_id: Optional[int] = None) -> PostORM:
-        post = PostORM(title=title, content=content, image_url=image_url,
+        slug = ensure_unique_slug(self.db, title)
+        post = PostORM(title=title, slug=slug, content=content, image_url=image_url,
                        user=user, category_id=category_id)
         for tag in tags:
             tag_obj = self.ensure_tag(tag["name"])

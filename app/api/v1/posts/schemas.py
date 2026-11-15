@@ -79,6 +79,7 @@ class PostUpdate(BaseModel):
 
 class PostPublic(PostBase):
     id: int
+    slug: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -86,6 +87,7 @@ class PostPublic(PostBase):
 class PostSummary(BaseModel):
     id: int
     title: str
+    slug: str
 
     model_config = ConfigDict(from_attributes=True)
 
