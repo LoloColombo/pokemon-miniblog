@@ -75,9 +75,10 @@ class PostRepository:
         return author_obj
 
     def ensure_tag(self, name: str) -> TagORM:
+        name = name.strip().lower()
 
         tag_obj = self.db.execute(
-            select(TagORM).where(TagORM.name.ilike(name))).scalar_one_or_none()
+            select(TagORM).where(func.lower(TagORM.name) == name)).scalar_one_or_none()
 
         if tag_obj:
             return tag_obj

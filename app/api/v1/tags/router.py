@@ -1,0 +1,77 @@
+from typing import Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from app.core.db import get_db
+from app.core.security import get_current_user
+from .repository import TagRepository
+from .schemas import PaginatedTags, TagCreate, TagPublic, TagUpdate, TagWithCount
+
+router = APIRouter(prefix="/tags", tags=["tags"])
+
+
+@router.get("", response_model=PaginatedTags)
+def list_tags(
+    search: Optional[str] = Query(None, min_length=1, max_length=30),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=50),
+    order_by: Literal["id", "name"] = Query("id"),
+    direction: Literal["asc", "desc"] = Query("asc"),
+    db: Session = Depends(get_db)
+):
+    repository = TagRepository(db)
+    result = repository.list_tags(search, page, per_page, order_by, direction)
+    return PaginatedTags(**result, order_by=order_by, direction=direction, search=search)
+
+
+@router.get("/popular", response_model=TagWithCount)
+def most_popular_tag(db: Session = Depends(get_db)):
+    repository = TagRepository(db)
+    tag = repository.most_popular()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Todavía no hay tags usados en posts")
+    return tag
+
+
+@router.get("/{tag_id}", response_model=TagPublic)
+def get_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
+    repository = TagRepository(db)
+    tag = repository.get(tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag no encontrado")
+    return tag
+
+
+@router.post("", response_model=TagPublic, status_code=status.HTTP_201_CREATED)
+def create_tag(tag: TagCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    repository = TagRepository(db)
+    tag_created = repository.create_tag(name=tag.name)
+    db.commit()
+    db.refresh(tag_created)
+    return tag_created
+
+
+@router.put("/{tag_id}", response_model=TagPublic)
+def update_tag(data: TagUpdate, tag_id: int = Path(..., ge=1), db: Session = Depends(get_db), user=Depends(get_current_user)):
+    repository = TagRepository(db)
+    tag = repository.get(tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag no encontrado")
+
+    try:
+        repository.update(tag, data.name)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Ya existe un tag con ese nombre")
+
+    db.refresh(tag)
+    return tag
+
+
+@router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tag(tag_id: int = Path(..., ge=1), db: Session = Depends(get_db), user=Depends(get_current_user)):
+    repository = TagRepository(db)
+    if not repository.delete(tag_id):
+        raise HTTPException(status_code=404, detail="Tag no encontrado")
+    db.commit()
